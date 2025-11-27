@@ -17,6 +17,7 @@ requests
 # Pydantic settings
 pydantic
 pydantic-settings
+email-validator
 
 # Optional ORM
 sqlalchemy
