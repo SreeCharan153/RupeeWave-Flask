@@ -1,162 +1,134 @@
-# 📌 **RupeeWave – Secure Banking ATM System**
+# 🚀 **RupeeWave – Secure Banking ATM System (Flask + Supabase)**
 
-Modern banking simulation with full authentication, RLS-backed authorization, transaction processing and audit logs built on **FastAPI + Supabase + Next.js**.
-
-<p align="center">
-  <img src="./assets/branding/banner-dark-blueprint.png.png" width="100%" />
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/Python-3.12-blue?style=for-the-badge">
-  <img src="https://img.shields.io/badge/FastAPI-Backend-009688?style=for-the-badge">
-  <img src="https://img.shields.io/badge/Supabase-Postgres-3ECF8E?style=for-the-badge">
-  <img src="https://img.shields.io/badge/Next.js-Frontend-black?style=for-the-badge">
-  <img src="https://img.shields.io/badge/JWT-HttpOnly-orange?style=for-the-badge">
-  <img src="https://img.shields.io/badge/Tests-Pytest-green?style=for-the-badge">
-</p>
+A complete banking backend built with **Flask**, **Supabase**, and **JWT-based authentication**.
+Designed for real-world banking workflows: account creation, PIN-based security, transactions, and audit logs.
 
 ---
 
-# 🚀 Live Links
+# 🌐 **Live Deployment**
 
-| Component                | URL                                                              |
-| ------------------------ | ---------------------------------------------------------------- |
-| 🖥️ **Frontend**         | [https://rupeewave.vercel.app](https://rupeewave.vercel.app)     |
-| ⚙️ **Backend (Swagger)** | [https://rupeewave.onrender.com](https://rupeewave.onrender.com) |
+| Component              | URL                                                                              |
+| ---------------------- | -------------------------------------------------------------------------------- |
+| 🖥️ Frontend (Next.js) | [https://rupeewave.vercel.app](https://rupeewave.vercel.app)                     |
+| ⚙️ Backend (Flask API) | [https://rupeewave-backend.onrender.com](https://rupeewave-backend.onrender.com) |
 
 ---
 
-# 🧠 Architecture
+# 🧠 **Architecture Overview**
 
 ```
-               ┌───────────────────────────┐
-               │         Frontend          │
-               │   Next.js + ShadCN UI     │
-               │   Sends cookies w/ fetch  │
-               └────────────┬──────────────┘
-                            │ HttpOnly Cookies
-                            ▼
-               ┌───────────────────────────┐
-               │          Backend          │
-               │     FastAPI + JWT         │
-               │ Access + Refresh tokens   │
-               └────────────┬──────────────┘
-                            │ RLS Enforced
-                            ▼
-               ┌───────────────────────────┐
-               │         Supabase          │
-               │ Postgres + RLS Policies   │
-               │ Audit Logs + RPCs         │
-               └───────────────────────────┘
+ ┌──────────────────────────┐
+ │        Frontend          │
+ │   Next.js + ShadCN UI    │
+ │  Sends HttpOnly Cookies  │
+ └──────────────┬───────────┘
+                │
+                ▼
+ ┌──────────────────────────┐
+ │        Backend           │
+ │ Flask + JWT Auth System  │
+ │  Access + Refresh Tokens │
+ │  Role Based Permissions  │
+ └──────────────┬───────────┘
+                │
+                ▼
+ ┌──────────────────────────┐
+ │        Supabase          │
+ │ Postgres + Policies      │
+ │ Secure RPC + Audits      │
+ └──────────────────────────┘
 ```
 
 ---
 
-# 🎯 Features Overview
+# 🎯 **Key Features**
 
-### 🔐 Authentication
+## 🔐 Authentication & Security
 
-* Admin / Teller login
-* JWT Access & Refresh (HttpOnly)
+* JWT Access + Refresh workflow
+* HttpOnly, Secure cookies
+* Role-based access (Admin, Teller, Customer)
 * Auto token refresh
-* Bruteforce protection (PIN lockout)
-* Full audit logs (IP + User-Agent)
+* PIN verification + account lockout after 3 attempts
+* Audit logging with IP + User-Agent
+* Full middleware-based protection
 
-### 🏦 Accounts
+## 🏦 Account Management
 
-* Create new account
-* Update mobile/email
+* Create new accounts
 * Change PIN
-* Balance check
+* Update email/mobile
+* Reset failed attempts
 
-### 💸 Transactions
+## 💸 Transactions
 
-* Deposit / Withdraw / Transfer
-* Atomic RPC functions
-* Fully logged
+* Deposit
+* Withdraw
+* Transfer
+* All actions logged
+* Atomic DB operations
 
-### 📜 History + Audit
+## 📜 History & Audits
 
 * Transaction timeline
-* Transfer IN/OUT classification
-* Audit logs on admin/teller activity
+* Incoming/Outgoing transfers
+* Teller/admin actions tracked
 
 ---
 
-<p align="center">
-  <img src="./assets/branding/icons-fullset.png.png" width="600" />
-</p>
+# 🔑 **Permission Matrix**
+
+| Feature                 | Customer | Teller | Admin |
+| ----------------------- | -------- | ------ | ----- |
+| Create User             | ❌        | ❌      | ✅     |
+| Create Account          | ❌        | ✅      | ✅     |
+| Deposit/Withdraw        | ✅ (own)  | ✅      | ✅     |
+| Transfer                | ✅        | ✅      | ✅     |
+| Change PIN/Mobile/Email | ✅        | ✅      | ✅     |
+| View History            | ❌        | ✅      | ✅     |
+| View Audit Logs         | ❌        | ❌      | ✅     |
 
 ---
 
-# 📜 Permission Matrix
-
-| Capability                  | Customer | Teller            | Admin |
-| --------------------------- | -------- | ----------------- | ----- |
-| Create Account              | ❌        | ✅                 | ✅     |
-| View Own Balance            | ✅        | ✅                 | ✅     |
-| Deposit / Withdraw          | ✅ (self) | ✅ (for customers) | ✅     |
-| Transfer                    | ✅ (self) | ✅ (for customers) | ✅     |
-| Change PIN / Email / Mobile | ✅ (own)  | ✅ (for customers) | ✅     |
-| View All Users              | ❌        | ✅                 | ✅     |
-| Create New User             | ❌        | ❌                 | ✅     |
-| View Audit Logs             | ❌        | ✅                 | ✅     |
-| Delete Users / Accounts     | ❌        | ❌                 | ✅     |
-| Manage Roles                | ❌        | ❌                 | ✅     |
-
----
-
-# 📂 Project Structure
+# 📂 **Backend Folder Structure (Flask Version)**
 
 ```
-RupeeWave/
-│
-├── Backend/
-│   ├── main.py
-│   ├── auth/
-│   ├── accounts/
-│   ├── transactions/
-│   ├── tests/
-│   └── utils/
-│
-├── Frontend/
-│   ├── app/
-│   ├── components/
-│   ├── lib/
-│   └── hooks/
-│
-├── README.md
-├── LICENSE
-└── CONTRIBUTING.md
+backend/
+│── main.py
+│── app/
+│   ├── routes/
+│   │   ├── auth_routes.py
+│   │   ├── account_routes.py
+│   │   ├── transaction_routes.py
+│   │   ├── update_routes.py
+│   │   └── history_routes.py
+│   ├── services/
+│   ├── schemas/
+│   ├── core/
+│   │   ├── security.py
+│   │   └── middleware.py
+│   └── config.py
+│── requirements.txt
 ```
 
 ---
 
-# 🖼️ UI Preview
+# 🛠 **Local Setup**
 
-
-<p align="center">
-  <img src="./assets/previews/login ui.png" width="400" alt="Login Screen" />
-  <img src="./assets/previews/admin ui.png" width="400" alt="Dashboard" />
-</p>
-
-<p align="center">
-  <img src="./assets/previews/teller ui.png" width="400" alt="Account Details" />
-  <img src="./assets/previews/customer ui.png" width="400" alt="Transactions" />
-</p>
-
----
-
-# 🛠 Local Setup
-
-### Backend
+## 🔧 Backend (Flask)
 
 ```bash
-yarn install # or pip install -r requirements.txt
-uvicorn main:app --reload
+pip install -r requirements.txt
+python main.py
 ```
 
-### Frontend
+OR for production testing on Windows:
+
+```bash
+waitress-serve --port=8000 main:app
+```
+
+## 🎨 Frontend (Next.js)
 
 ```bash
 npm install
@@ -165,102 +137,53 @@ npm run dev
 
 ---
 
-# 🧪 Tests (Pytest)
+# 🧪 **Testing (Pytest)**
 
 ```bash
 pytest -v
 ```
 
-Covers:
+Includes tests for:
 
-* User & account creation
-* Deposit, withdraw, transfer
-* PIN security
-* History validation
-
----
-
-# 🔒 Security Practices
-
-* Cookies are HttpOnly + Secure
-* No tokens stored in JS
-* RLS policies for all tables
-* Auditing for every transaction
-* Argument validation at DB + API level
+* auth
+* transactions
+* PIN lockout
+* account creation
+* history validation
 
 ---
 
-# 📈 Future Enhancements
+# 🔒 **Security Highlights**
 
-* Customer Portal
-* Teller analytics dashboard
+* No JWT stored in browser storage
+* All tokens are HttpOnly + Secure
+* Refresh token rotation
+* Account lockout logic
+* Supabase RLS protecting all tables
+* Server-side session verification
+* Prevents replay attacks via expiration checks
+
+---
+
+# 📈 **Future Enhancements**
+
+* Customer dashboard
+* Teller analytics
 * PDF statements
-* SMS/Email alerts
+* SMS / Email alerts
+* Search & filter history
+* Fraud detection flags
 
 ---
 
-# 🤝 Contributing
-
-### 1. Fork the repo
-
-### 2. Create your feature branch
-
-```bash
-git checkout -b feature/amazing-feature
-```
-
-### 3. Commit changes
-
-```bash
-git commit -m "Add amazing feature"
-```
-
-### 4. Push
-
-```bash
-git push origin feature/amazing-feature
-```
-
-### 5. Open a Pull Request 🎉
-
----
-
-# 🐞 Filing Issues
-
-Bug reports should include:
-
-```
-Steps to reproduce:
-Expected behavior:
-Actual behavior:
-Environment:
-```
-
-Feature requests should include:
-
-```
-Use case:
-Proposed solution:
-Alternatives:
-```
-
----
-
-# 📜 License
-
-MIT License
-
----
-
-# 🧑‍💻 Author
+# 🧑‍💻 **Author**
 
 **Sri Charan Machabhakthuni**
-Full-stack engineer | Python backend specialist
+Full-stack Developer | Python Backend Specialist
 
 ---
 
-# ⭐ Support the Project
+# ⭐ **Support & Credits**
 
-<p align="center">
-  <img src="./assets/branding/branding-overview.png.png" width="800" />
-</p>
+If you like this project, consider starring the repo.
+Your support motivates the next version of RupeeWave.
