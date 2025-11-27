@@ -1,43 +1,43 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from flask import Flask
+from flask_cors import CORS
 
 from app.core.middleware import attach_supabase_middleware
 from app.core.security import refresh_cookie_middleware
-from app.routes.auth_routes import router as auth_router
-from app.routes.account_routes import router as account_router
-from app.routes.transaction_routes import router as transaction_router
-from app.routes.update_routes import router as update_router
-from app.routes.history_routes import router as history_router
-from app.routes.debug_routes import router as debug_router
-from app.config import settings
+
+# Blueprints
+from app.routes.auth_routes import auth_bp
+from app.routes.account_routes import account_bp
+from app.routes.transaction_routes import transaction_bp
+from app.routes.update_routes import update_bp
+from app.routes.history_routes import history_bp
+from app.routes.debug_routes import debug_bp
 
 
-def create_app() -> FastAPI:
-    app = FastAPI(title="RupeeWave API", version="3.0")
+def create_app():
+    app = Flask(__name__)
 
     # -------------------- CORS --------------------
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[
+    CORS(
+        app,
+        supports_credentials=True,
+        origins=[
             "http://localhost:3000",
             "https://rupeewave.vercel.app",
             "https://rupeewave.onrender.com",
         ],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
     )
 
-    # ---------------- Middlewares ----------------
-    app.middleware("http")(attach_supabase_middleware)
-    app.middleware("http")(refresh_cookie_middleware)
+    # -------------------- Middlewares --------------------
+    # These functions MODIFY the app directly.
+    attach_supabase_middleware(app)
+    refresh_cookie_middleware(app)
 
-    # ------------------- Routers -------------------
-    app.include_router(auth_router, prefix="/auth", tags=["Auth"])
-    app.include_router(account_router, prefix="/account", tags=["Account"])
-    app.include_router(transaction_router, prefix="/transaction", tags=["Transaction"])
-    app.include_router(update_router, prefix="/update", tags=["Update"])
-    app.include_router(history_router, prefix="/history", tags=["History"])
-    app.include_router(debug_router, prefix="/debug", tags=["Debug"])
+    # ------------------- Blueprints -------------------
+    app.register_blueprint(auth_bp, url_prefix="/auth")
+    app.register_blueprint(account_bp, url_prefix="/account")
+    app.register_blueprint(transaction_bp, url_prefix="/transaction")
+    app.register_blueprint(update_bp, url_prefix="/update")
+    app.register_blueprint(history_bp, url_prefix="/history")
+    app.register_blueprint(debug_bp, url_prefix="/debug")
 
     return app

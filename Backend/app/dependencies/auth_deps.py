@@ -1,65 +1,82 @@
-from fastapi import Request, HTTPException, Depends
+from flask import g, jsonify
+from functools import wraps
 from typing import Dict, Any
+
 from app.utils.jwt_tools import decode_token, make_access, REFRESH_GRACE_SECONDS
 from app.utils.time_tools import now_utc_ts
 from app.core.supabase_client import get_public_client
-from supabase import Client
 
 
-def get_current_user(request: Request) -> Dict[str, str]:
+def get_current_user() -> Dict[str, str] | None:
     """
-    Extract user information from the access token in cookies.
-    Validates token, fetches user from DB, refreshes token if needed.
+    Extract and validate user from access token in Flask.
+    Returns a dict OR None if unauthorized.
     """
-    token = request.cookies.get("atm_token")
+
+    token = g.cookies.get("atm_token")
     if not token:
-        raise HTTPException(401, "Missing access token")
+        return None
 
     # Decode token
-    claims = decode_token(token)
+    try:
+        claims = decode_token(token)
+    except Exception:
+        return None
 
     if claims.get("type") != "access":
-        raise HTTPException(401, "Invalid token type")
+        return None
 
     user_id = claims.get("sub")
     app_role = claims.get("app_role")
-
     if not user_id or not app_role:
-        raise HTTPException(401, "Invalid token payload")
+        return None
 
     # Fetch user from Supabase
-    client: Client = getattr(request.state, "supabase", None) or get_public_client()
+    client = getattr(g, "supabase", None) or get_public_client()
 
-    res = (
-        client.table("users")
-        .select("uid, role")
-        .eq("uid", user_id)
-        .single()
-        .execute()
-    )
+    try:
+        res = (
+            client.table("users")
+            .select("uid, role")
+            .eq("uid", user_id)
+            .single()
+            .execute()
+        )
+    except Exception:
+        return None
 
     if not res.data:
-        raise HTTPException(401, "User not found")
+        return None
 
-    # DB is source of truth, update role if mismatch
+    # DB is source of truth
     db_role = res.data["role"]
     if db_role != app_role:
         app_role = db_role
 
-    # Opportunistic refresh
+    # Opportunistic refresh → Flask version
     exp = claims.get("exp")
     if exp and (exp - now_utc_ts()) < REFRESH_GRACE_SECONDS:
-        request.state.new_access_token = make_access(str(user_id), app_role)
+        # Our converted middleware looks for this
+        g.new_access_token = make_access(str(user_id), app_role)
 
     return {"sub": str(user_id), "app_role": app_role}
 
 
-def require_roles(*roles: str):
+def roles_required(*roles):
     """
-    Role-based access decorator for routers.
+    Decorator replacement for FastAPI's role enforcement.
     """
-    def _dep(user: Dict[str, Any] = Depends(get_current_user)):
-        if user["app_role"] not in roles:
-            raise HTTPException(403, "Forbidden: insufficient role")
-        return user
-    return _dep
+
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            user = get_current_user()
+            if not user:
+                return jsonify({"detail": "Unauthorized"}), 401
+
+            if user["app_role"] not in roles:
+                return jsonify({"detail": "Forbidden: insufficient role"}), 403
+
+            return fn(*args, **kwargs)
+        return wrapper
+    return decorator

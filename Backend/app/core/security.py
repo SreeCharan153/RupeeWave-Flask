@@ -1,22 +1,29 @@
-from fastapi import Request
+from flask import g
 from app.utils.cookie_tools import set_cookie
 from app.utils.jwt_tools import ACCESS_TTL
 
 
-async def refresh_cookie_middleware(request: Request, call_next):
+def refresh_cookie_middleware(app):
     """
-    If the handler sets `request.state.new_access_token`,
-    refresh the atm_token cookie automatically.
+    Flask equivalent of FastAPI refresh_cookie_middleware.
+    If a route sets request.new_access_token, we refresh the atm_token cookie.
     """
-    response = await call_next(request)
 
-    new_access = getattr(request.state, "new_access_token", None)
-    if new_access:
-        set_cookie(
-            response,
-            "atm_token",
-            new_access,
-            max_age=int(ACCESS_TTL.total_seconds()),
-        )
+    @app.before_request
+    def init_flag():
+        # initialize empty token attribute
+        g.new_access_token = None
 
-    return response
+    @app.after_request
+    def refresh_cookie(response):
+        new_access = getattr(g, "new_access_token", None)
+        if new_access:
+            set_cookie(
+                response,
+                "atm_token",
+                new_access,
+                max_age=int(ACCESS_TTL.total_seconds()),
+            )
+        return response
+
+    return app

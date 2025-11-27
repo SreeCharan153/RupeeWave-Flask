@@ -1,4 +1,4 @@
-from fastapi import Request
+from flask import Request
 from supabase import Client
 from app.services.auth_service import AuthService
 

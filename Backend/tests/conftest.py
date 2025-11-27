@@ -8,7 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import pytest
 from fastapi.testclient import TestClient
-from Backend.app.main import app
+from Backend.main import app
 
 @pytest.fixture(scope="session")
 def client():

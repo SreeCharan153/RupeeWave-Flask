@@ -1,22 +1,44 @@
-# app/routes/account_routes.py
+from flask import Blueprint, g, jsonify
+from functools import wraps
 
-from fastapi import APIRouter, Depends, Request, HTTPException
-from app.dependencies.auth_deps import require_roles
+from app.dependencies.auth_deps import get_current_user, roles_required
 from app.services.account_service import AccountService
 from app.schemas.account_schemas import CreateAccountRequest
 
-router = APIRouter()
 
+account_bp = Blueprint("account", __name__)
 account_service = AccountService()
 
 
-@router.post("/create")
-def create_account(
-    request: Request,
-    data: CreateAccountRequest,
-    _: dict = Depends(require_roles("admin")),
-):
-    db = request.state.service  # privileged client
+# -------- ROLE DECORATOR (same as used in auth routes) --------
+def role_required(role):
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            user = get_current_user()
+            if not user or user.get("app_role") != role:
+                return jsonify({"detail": "Not authorized"}), 403
+            return fn(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
+# -------- CREATE ACCOUNT (Admin Only) --------
+@account_bp.route("/create", methods=["POST"])
+@role_required("admin")
+def create_account():
+    db = g.service  # obtained from middleware
+
+    # Flask doesn't auto-validate JSON → must load manually
+    payload = g.get("json")
+    if not payload:
+        return jsonify({"detail": "Missing JSON"}), 400
+
+    # Pydantic-like validation using your schema
+    try:
+        data = CreateAccountRequest(**payload)
+    except Exception:
+        return jsonify({"detail": "Invalid payload"}), 400
 
     ok, result = account_service.create_account(
         db=db,
@@ -25,14 +47,14 @@ def create_account(
         vpin=data.vpin,
         mobileno=data.mobileno,
         gmail=data.gmail,
-        request=request
+        request=g.request,
     )
 
     if not ok:
-        raise HTTPException(400, result)
+        return jsonify({"detail": result}), 400
 
-    return {
+    return jsonify({
         "success": True,
         "account_no": result["account_no"],
         "message": result["message"],
-    }
+    })

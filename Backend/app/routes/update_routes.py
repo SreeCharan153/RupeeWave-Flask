@@ -1,25 +1,34 @@
-# app/routes/update_routes.py
-
-from fastapi import APIRouter, Depends, Request, HTTPException
-from app.dependencies.auth_deps import require_roles
-from app.schemas.update_schemas import ChangePinRequest, UpdateMobileRequest, UpdateEmailRequest
+from flask import Blueprint, request, jsonify, g
+from app.dependencies.auth_deps import roles_required
+from app.schemas.update_schemas import (
+    ChangePinRequest,
+    UpdateMobileRequest,
+    UpdateEmailRequest
+)
 from app.services.update_service import UpdateService
 
-router = APIRouter()
+
+update_bp = Blueprint("update", __name__)
 update_service = UpdateService()
 
 
 # -------- CHANGE PIN --------
-@router.put("/change-pin")
-def change_pin(
-    request: Request,
-    data: ChangePinRequest,
-    _: dict = Depends(require_roles("admin", "teller")),
-):
-    db = request.state.service
+@update_bp.route("/change-pin", methods=["PUT"])
+@roles_required("admin", "teller")
+def change_pin():
+    db = g.service   # middleware provided
+
+    payload = request.get_json()
+    if not payload:
+        return jsonify({"detail": "Missing JSON"}), 400
+
+    try:
+        data = ChangePinRequest(**payload)
+    except Exception:
+        return jsonify({"detail": "Invalid payload"}), 400
 
     if data.newpin != data.vnewpin:
-        raise HTTPException(400, "New PINs do not match.")
+        return jsonify({"detail": "New PINs do not match."}), 400
 
     ok, msg = update_service.change_pin(
         db=db,
@@ -30,19 +39,25 @@ def change_pin(
     )
 
     if not ok:
-        raise HTTPException(400, msg)
+        return jsonify({"detail": msg}), 400
 
-    return {"success": True, "message": msg}
+    return jsonify({"success": True, "message": msg})
 
 
 # -------- UPDATE MOBILE --------
-@router.put("/update-mobile")
-def update_mobile(
-    request: Request,
-    data: UpdateMobileRequest,
-    _: dict = Depends(require_roles("admin", "teller")),
-):
-    db = request.state.service
+@update_bp.route("/update-mobile", methods=["PUT"])
+@roles_required("admin", "teller")
+def update_mobile():
+    db = g.service
+
+    payload = request.get_json()
+    if not payload:
+        return jsonify({"detail": "Missing JSON"}), 400
+
+    try:
+        data = UpdateMobileRequest(**payload)
+    except Exception:
+        return jsonify({"detail": "Invalid payload"}), 400
 
     ok, msg = update_service.update_mobile(
         db=db,
@@ -54,19 +69,25 @@ def update_mobile(
     )
 
     if not ok:
-        raise HTTPException(400, msg)
+        return jsonify({"detail": msg}), 400
 
-    return {"success": True, "message": msg}
+    return jsonify({"success": True, "message": msg})
 
 
 # -------- UPDATE EMAIL --------
-@router.put("/update-email")
-def update_email(
-    request: Request,
-    data: UpdateEmailRequest,
-    _: dict = Depends(require_roles("admin", "teller")),
-):
-    db = request.state.service
+@update_bp.route("/update-email", methods=["PUT"])
+@roles_required("admin", "teller")
+def update_email():
+    db = g.service
+
+    payload = request.get_json()
+    if not payload:
+        return jsonify({"detail": "Missing JSON"}), 400
+
+    try:
+        data = UpdateEmailRequest(**payload)
+    except Exception:
+        return jsonify({"detail": "Invalid payload"}), 400
 
     ok, msg = update_service.update_email(
         db=db,
@@ -78,6 +99,6 @@ def update_email(
     )
 
     if not ok:
-        raise HTTPException(400, msg)
+        return jsonify({"detail": msg}), 400
 
-    return {"success": True, "message": msg}
+    return jsonify({"success": True, "message": msg})

@@ -1,68 +1,86 @@
-# app/routes/transaction_routes.py
+from flask import Blueprint, request, jsonify, g
 
-from fastapi import APIRouter, Depends, Request, HTTPException
-from app.dependencies.auth_deps import require_roles
+from app.dependencies.auth_deps import roles_required
 from app.schemas.transaction_schemas import TransactionRequest, TransferRequest
 from app.services.transaction_service import TransactionService
 
-router = APIRouter()
+
+transaction_bp = Blueprint("transaction", __name__)
 transaction_service = TransactionService()
 
 
-# -------- DEPOSIT --------
-@router.post("/deposit")
-def deposit(
-    request: Request,
-    data: TransactionRequest,
-    _: dict = Depends(require_roles("admin", "teller", "customer")),
-):
-    db = request.state.service  # privileged DB client
+# ---------------- DEPOSIT ----------------
+@transaction_bp.route("/deposit", methods=["POST"])
+@roles_required("admin", "teller", "customer")
+def deposit():
+    db = g.service  # from middleware
+
+    payload = request.get_json()
+    if not payload:
+        return jsonify({"detail": "Missing JSON"}), 400
+
+    try:
+        data = TransactionRequest(**payload)
+    except Exception:
+        return jsonify({"detail": "Invalid payload"}), 400
 
     ok, msg = transaction_service.deposit(
         db=db,
         ac_no=data.acc_no,
         amount=data.amount,
         pin=data.pin,
-        request=request
+        request=request,
     )
 
     if not ok:
-        raise HTTPException(400, msg)
+        return jsonify({"detail": msg}), 400
 
-    return {"success": True, "message": msg}
+    return jsonify({"success": True, "message": msg})
 
 
-# -------- WITHDRAW --------
-@router.post("/withdraw")
-def withdraw(
-    request: Request,
-    data: TransactionRequest,
-    _: dict = Depends(require_roles("admin", "teller", "customer")),
-):
-    db = request.state.service
+# ---------------- WITHDRAW ----------------
+@transaction_bp.route("/withdraw", methods=["POST"])
+@roles_required("admin", "teller", "customer")
+def withdraw():
+    db = g.service
+
+    payload = request.get_json()
+    if not payload:
+        return jsonify({"detail": "Missing JSON"}), 400
+
+    try:
+        data = TransactionRequest(**payload)
+    except Exception:
+        return jsonify({"detail": "Invalid payload"}), 400
 
     ok, msg = transaction_service.withdraw(
         db=db,
         ac_no=data.acc_no,
         amount=data.amount,
         pin=data.pin,
-        request=request
+        request=request,
     )
 
     if not ok:
-        raise HTTPException(400, msg)
+        return jsonify({"detail": msg}), 400
 
-    return {"success": True, "message": msg}
+    return jsonify({"success": True, "message": msg})
 
 
-# -------- TRANSFER --------
-@router.post("/transfer")
-def transfer(
-    request: Request,
-    data: TransferRequest,
-    _: dict = Depends(require_roles("admin", "teller", "customer")),
-):
-    db = request.state.service
+# ---------------- TRANSFER ----------------
+@transaction_bp.route("/transfer", methods=["POST"])
+@roles_required("admin", "teller", "customer")
+def transfer():
+    db = g.service
+
+    payload = request.get_json()
+    if not payload:
+        return jsonify({"detail": "Missing JSON"}), 400
+
+    try:
+        data = TransferRequest(**payload)
+    except Exception:
+        return jsonify({"detail": "Invalid payload"}), 400
 
     ok, msg = transaction_service.transfer(
         db=db,
@@ -74,9 +92,6 @@ def transfer(
     )
 
     if not ok:
-        raise HTTPException(400, msg)
+        return jsonify({"detail": msg}), 400
 
-    return {
-        "success": True,
-        "message": msg,
-    }
+    return jsonify({"success": True, "message": msg})

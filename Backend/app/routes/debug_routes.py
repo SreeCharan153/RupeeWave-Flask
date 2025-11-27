@@ -1,20 +1,32 @@
-# app/routes/debug_routes.py
-
-from fastapi import APIRouter, Depends, Request, HTTPException
-from app.dependencies.auth_deps import require_roles
-
-router = APIRouter()
+from flask import Blueprint, g, jsonify
+from functools import wraps
+from app.dependencies.auth_deps import get_current_user
 
 
-@router.get("/jwt")
-def debug_jwt(
-    request: Request,
-    _: dict = Depends(require_roles("admin")),  # <--- LOCKED TO ADMINS ONLY
-):
-    db = request.state.service  # service client = privileged
+debug_bp = Blueprint("debug", __name__)
+
+
+# -------- ROLE DECORATOR --------
+def role_required(role):
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            user = get_current_user()
+            if not user or user.get("app_role") != role:
+                return jsonify({"detail": "Not authorized"}), 403
+            return fn(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
+# -------- DEBUG JWT --------
+@debug_bp.route("/jwt", methods=["GET"])
+@role_required("admin")     # locked to admin, same as FastAPI
+def debug_jwt():
+    db = g.service  # from middleware
 
     try:
         res = db.rpc("debug_claims").execute()
-        return {"jwt": res.data}
+        return jsonify({"jwt": res.data})
     except Exception as e:
-        return {"error": str(e)}
+        return jsonify({"error": str(e)})

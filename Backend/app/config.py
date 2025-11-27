@@ -1,5 +1,7 @@
 from pydantic_settings import BaseSettings
 from pydantic import field_validator
+import os
+import sys
 
 
 class Settings(BaseSettings):
@@ -13,14 +15,12 @@ class Settings(BaseSettings):
 
     # -------------------- SECURITY --------------------
     SUPABASE_JWT_SECRET: str = ""
-    SECRET_KEY: str | None = None  # local fallback
+    SECRET_KEY: str | None = None  # fallback for Flask sessions
 
-    # -------------------- Pydantic Config --------------------
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
 
-    # -------------------- VALIDATION --------------------
     @field_validator("ENV")
     def validate_env(cls, v):
         allowed = {"dev", "prod"}
@@ -28,30 +28,27 @@ class Settings(BaseSettings):
             raise ValueError(f"ENV must be one of {allowed}")
         return v
 
-    # JWT Secret (final)
     @property
     def JWT_SECRET(self) -> str:
-        """Return a guaranteed JWT secret string."""
         if self.SUPABASE_JWT_SECRET:
             return self.SUPABASE_JWT_SECRET
         if self.SECRET_KEY:
             return self.SECRET_KEY
-        raise ValueError("No JWT secret found. Set SUPABASE_JWT_SECRET or SECRET_KEY.")
+        raise RuntimeError("No JWT secret provided!")
 
 
-# -------------------- LOAD SETTINGS --------------------
 settings = Settings()
 
-# -------------------- MANUAL STARTUP VALIDATION --------------------
-required_vars = [
-    ("SUPABASE_URL", settings.SUPABASE_URL),
-    ("SUPABASE_KEY", settings.SUPABASE_KEY),
-    ("SUPABASE_SERVICE_ROLE_KEY", settings.SUPABASE_SERVICE_ROLE_KEY),
-]
+# -------------------- REQUIRED KEYS (SAFE VALIDATION) --------------------
+required = {
+    "SUPABASE_URL": settings.SUPABASE_URL,
+    "SUPABASE_KEY": settings.SUPABASE_KEY,
+    "SUPABASE_SERVICE_ROLE_KEY": settings.SUPABASE_SERVICE_ROLE_KEY,
+}
 
-for key, value in required_vars:
-    if not value:
-        raise RuntimeError(f"{key} missing from .env")
+missing = [k for k, v in required.items() if not v]
 
-# JWT Secret is checked via property inside JWT_SECRET
-_ = settings.JWT_SECRET
+if missing:
+    msg = f"Missing environment variables: {', '.join(missing)}"
+    print("[CONFIG ERROR]", msg, file=sys.stderr)
+    raise RuntimeError(msg)

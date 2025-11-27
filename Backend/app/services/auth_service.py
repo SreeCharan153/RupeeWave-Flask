@@ -1,14 +1,15 @@
 from bcrypt import hashpw, gensalt, checkpw
 from typing import Tuple, Any
-from fastapi import Request
+from flask import request  # Flask request ONLY
 import random
 from supabase import Client
 
 
 class AuthService:
     def __init__(self):
-        pass  # no DB stored here
+        pass
 
+    # ---------------- USER LOOKUP ----------------
     def get_user(self, db: Client, username: str):
         try:
             response = (
@@ -22,14 +23,16 @@ class AuthService:
             return None
         return response.data if response.data else None
 
-    def log_event(self, db: Client, actor: str, action: str, details: str, request: Request):
+    # ---------------- EVENT LOGGING ----------------
+    def log_event(self, db: Client, actor: str, action: str, details: str, request):
+        # Flask request object
         try:
-            ip = request.client.host if request.client else "unknown"
+            ip = request.remote_addr or "unknown"
         except Exception:
             ip = "unknown"
 
         try:
-            ua = request.headers.get("user-agent", "unknown")
+            ua = request.headers.get("User-Agent", "unknown")
         except Exception:
             ua = "unknown"
 
@@ -46,15 +49,18 @@ class AuthService:
         except Exception:
             pass
 
+    # ---------------- PIN FUNCTIONS ----------------
     def hash_pin(self, pin: str) -> str:
         return hashpw(pin.encode(), gensalt()).decode()
 
     def verify_pin(self, pin: str, hashed_pin: str) -> bool:
         return checkpw(pin.encode(), hashed_pin.encode())
 
+    # ---------------- ACCOUNT NO ----------------
     def generate_account_no(self) -> str:
         return "AC" + str(random.randint(10**9, 10**10 - 1))
 
+    # ---------------- ACCOUNT CREATION ----------------
     def create(self, db: Client, holder: str, pin: str, vpin: str, mobileno: str, gmail: str) -> Tuple[bool, Any]:
         # Validation
         if len(pin) != 4 or not pin.isdigit():
@@ -124,6 +130,7 @@ class AuthService:
             "message": f"Account created successfully with Acc_No {account_no}"
         }
 
+    # ---------------- EMPLOYEE CREATION ----------------
     def create_employ(self, db: Client, username: str, pas: str, role: str) -> Tuple[bool, str]:
         try:
             hashed = self.hash_pin(pas)
@@ -139,6 +146,7 @@ class AuthService:
                 return False, "Username already exists."
             return False, f"Database Error: {e}"
 
+    # ---------------- PASSWORD CHECK ----------------
     def password_check(self, db: Client, username: str, pw: str) -> Any:
         try:
             resp = (
@@ -157,7 +165,8 @@ class AuthService:
         stored_hash = resp.data[0]["password"]
         return checkpw(pw.encode(), stored_hash.encode())
 
-    def check(self, db: Client, ac_no: str, pin: str, request: Request) -> Tuple[bool, str]:
+    # ---------------- PIN VALIDATION & LOCKOUT ----------------
+    def check(self, db: Client, ac_no: str, pin: str, request) -> Tuple[bool, str]:
         pin = str(pin).strip()
         try:
             response = (
@@ -192,6 +201,7 @@ class AuthService:
             self.log_event(db, ac_no, "pin_success", "PIN verified", request)
             return True, "PIN verified."
 
+        # Wrong PIN
         attempts += 1
         if attempts >= 3:
             try:
@@ -205,6 +215,7 @@ class AuthService:
             self.log_event(db, ac_no, "account_locked", "3 wrong attempts", request)
             return False, "Account locked after 3 wrong PIN attempts."
 
+        # Update attempts
         try:
             db.table("accounts").update({"failed_attempts": attempts}).eq("account_no", ac_no).execute()
         except:

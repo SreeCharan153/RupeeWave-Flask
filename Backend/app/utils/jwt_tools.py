@@ -1,7 +1,8 @@
 from typing import Dict, Any
 import jwt
 from datetime import datetime, UTC, timedelta
-from fastapi import HTTPException
+
+from flask import jsonify, abort
 
 from app.config import settings
 from app.utils.time_tools import now_utc_ts
@@ -10,7 +11,7 @@ from app.utils.time_tools import now_utc_ts
 ALGORITHM = "HS256"
 ACCESS_TTL = timedelta(hours=1)
 REFRESH_TTL = timedelta(days=30)
-REFRESH_GRACE_SECONDS = 10 * 60 
+REFRESH_GRACE_SECONDS = 10 * 60  # 10 minutes
 
 
 def encode_token(payload: Dict[str, Any]) -> str:
@@ -21,9 +22,9 @@ def decode_token(token: str) -> Dict[str, Any]:
     try:
         return jwt.decode(token, settings.JWT_SECRET, algorithms=[ALGORITHM])
     except jwt.ExpiredSignatureError:
-        raise HTTPException(401, "Token expired")
+        abort(401, description="Token expired")
     except jwt.InvalidTokenError:
-        raise HTTPException(401, "Invalid token")
+        abort(401, description="Invalid token")
 
 
 def make_access(sub: str, app_role: str) -> str:
