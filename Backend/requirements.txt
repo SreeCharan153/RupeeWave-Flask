@@ -1,0 +1,29 @@
+# FastAPI + Server
+fastapi[all]
+uvicorn
+pydantic[email]
+python-multipart
+jinja2
+
+# Auth + Security
+bcrypt
+PyJWT
+email-validator
+
+# Supabase + HTTP
+supabase
+postgrest
+httpx
+python-dotenv
+requests
+
+# Optional ORM
+sqlalchemy
+
+# Async utils
+anyio
+
+# Testing
+pytest
+pytest-asyncio
+pytest-timeout
