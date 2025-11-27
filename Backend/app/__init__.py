@@ -22,8 +22,8 @@ def create_app():
         supports_credentials=True,
         origins=[
             "http://localhost:3000",
-            "https://rupeewave.vercel.app",
-            "https://rupeewave.onrender.com",
+            "https://rupee-wave-flask.vercel.app",
+            "https://rupee-wave-flask.onrender.com",
         ],
     )
 
