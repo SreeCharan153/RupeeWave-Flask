@@ -1,6 +1,7 @@
 # Flask core
 Flask
 flask-cors
+gunicorn
 
 # Security + Auth
 bcrypt
